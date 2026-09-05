@@ -208,9 +208,13 @@ export class FlowiseTableService {
         console.log('🔄 [USER-EDIT] Forcing save (user modification, ignoring fingerprint check)');
       }
 
+      console.log('🔍 [DEBUG] Before enforceStorageLimits...');
+      
       // Check storage limits before saving (Task 8.1, 8.3)
       // Enforce size limits (max tables and max storage size)
       await this.enforceStorageLimits(sessionId);
+      
+      console.log('🔍 [DEBUG] After enforceStorageLimits, before checkStorageQuota...');
       
       // Check quota threshold
       const quotaInfo = await this.checkStorageQuota();
@@ -240,8 +244,29 @@ export class FlowiseTableService {
       const position = this.detectTablePosition(tableElement, container);
 
       // Create table record
+      // 🆕 For user_edit: Find existing table by fingerprint and reuse its ID (allows UPDATE)
+      let tableId: string;
+      if (source === 'user_edit') {
+        // Check if table with same fingerprint already exists
+        const existingTables = await indexedDBService.getAllGeneratedTables<FlowiseGeneratedTableRecord>();
+        const existing = existingTables.find(t => 
+          t.sessionId === sessionId && 
+          t.fingerprint === fingerprint
+        );
+        
+        if (existing) {
+          tableId = existing.id; // Reuse existing ID → UPDATE
+          console.log(`🔄 [USER-EDIT] Reusing existing table ID: ${tableId} (will UPDATE)`);
+        } else {
+          tableId = this.generateStableUUID(sessionId, keyword); // New stable ID
+          console.log(`🆕 [USER-EDIT] Creating new stable ID: ${tableId}`);
+        }
+      } else {
+        tableId = this.generateUUID(); // Random UUID for new tables
+      }
+      
       const tableRecord: FlowiseGeneratedTableRecord = {
-        id: this.generateUUID(),
+        id: tableId,
         sessionId,
         messageId,
         keyword,
@@ -257,6 +282,8 @@ export class FlowiseTableService {
         processed: false // Not a processed trigger table
       };
 
+      console.log('🔍 [DEBUG] Before putGeneratedTable, tableRecord:', { id: tableRecord.id, keyword: tableRecord.keyword });
+      
       // Save to IndexedDB with storage error handling
       // Task 11.2: Catch QuotaExceededError and trigger cleanup
       try {
@@ -312,6 +339,7 @@ export class FlowiseTableService {
       }
     } catch (error) {
       console.error('❌ Error saving generated table:', error);
+      console.error('❌ Error stack:', error instanceof Error ? error.stack : 'No stack');
       throw error;
     }
   }
@@ -1264,6 +1292,31 @@ export class FlowiseTableService {
       const v = c === 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
     });
+  }
+
+  /**
+   * Generate a STABLE UUID based on sessionId + keyword
+   * 🆕 For user_edit source: same table = same ID → allows UPDATE instead of duplicate INSERT
+   * 
+   * @param sessionId - Session identifier
+   * @param keyword - Table keyword (unique per table)
+   * @returns Deterministic UUID based on inputs
+   */
+  private generateStableUUID(sessionId: string, keyword: string): string {
+    // Create deterministic hash from sessionId + keyword
+    const input = `${sessionId}_${keyword}`;
+    let hash = 0;
+    for (let i = 0; i < input.length; i++) {
+      const char = input.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    
+    // Convert hash to UUID-like format (8-4-4-4-12 hex)
+    const hex = Math.abs(hash).toString(16).padStart(8, '0');
+    const uuid = `${hex.substring(0, 8)}-${hex.substring(0, 4)}-4${hex.substring(0, 3)}-a${hex.substring(0, 3)}-${hex.padEnd(12, '0').substring(0, 12)}`;
+    
+    return uuid;
   }
 
   /**

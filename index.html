@@ -42,6 +42,18 @@
             style="padding: 12px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
       🧹 Nettoyer IndexedDB
     </button>
+    <button onclick="if (window.flowiseTableBridge && window.flowiseTableBridge.performAutoSave) { window.flowiseTableBridge.performAutoSave().then(() => alert('✅ SAUVEGARDE MANUELLE\\n\\nToutes les tables modifiées ont été sauvegardées !\\n\\nConsultez la console F12 pour les détails.')).catch(err => alert('❌ Erreur sauvegarde:\\n\\n' + err.message)); } else { alert('❌ ERREUR\\n\\nSystème auto-save non disponible.\\n\\nVérifiez la console F12.'); }"
+            style="padding: 12px 20px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      💾 Sauvegarder
+    </button>
+    <button onclick="const bridge = window.flowiseTableBridge; let msg = '🔍 DIAGNOSTIC AUTO-SAVE\\n\\n'; msg += '1. Bridge existe ? ' + (bridge ? '✅ OUI' : '❌ NON') + '\\n'; if (bridge) { msg += '2. MutationObserver ? ' + (bridge.mutationObserver !== null ? '✅ ACTIF' : '❌ INACTIF') + '\\n'; msg += '3. performAutoSave ? ' + (typeof bridge.performAutoSave === 'function' ? '✅ OUI' : '❌ NON') + '\\n'; msg += '4. dirtyTables.size ? ' + (bridge.dirtyTables?.size || 0) + ' table(s)\\n'; msg += '5. autoSaveInterval ? ' + (bridge.autoSaveInterval !== null ? '✅ ACTIF' : '❌ INACTIF') + '\\n'; } else { msg += '\\n❌ CRITIQUE: Bridge non initialisé\\nRebuild requis !'; } alert(msg);"
+            style="padding: 12px 20px; background: #ea580c; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      🔍 Diagnostic
+    </button>
+    <button onclick="const bridge = window.flowiseTableBridge; if (!bridge || bridge.dirtyTables.size === 0) { alert('ℹ️ AUCUNE TABLE MODIFIÉE\\n\\nAucune table en attente de sauvegarde.'); return; } let msg = '💾 FORCER SAUVEGARDE\\n\\nTables en attente:\\n'; const tables = Array.from(bridge.dirtyTables); tables.forEach((t, i) => { msg += (i+1) + '. ' + t + '\\n'; }); msg += '\\n🔄 Tentative sauvegarde...'; alert(msg); setTimeout(() => { bridge.performAutoSave().then(() => alert('✅ SUCCÈS\\n\\nSauvegarde effectuée !\\nVérifier console F12.')).catch(err => alert('❌ ÉCHEC\\n\\nErreur: ' + err.message + '\\n\\nStack:\\n' + err.stack)); }, 500);"
+            style="padding: 12px 20px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      🔧 Force Save
+    </button>
   </div>
   
   <div id="root"></div>

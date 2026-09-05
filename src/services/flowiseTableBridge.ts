@@ -2719,8 +2719,9 @@ export class FlowiseTableBridge {
 
   /**
    * Effectuer sauvegarde automatique des tables modifiÃ©es
+   * 🆕 PUBLIC pour permettre sauvegarde manuelle via bouton front-end
    */
-  private async performAutoSave(): Promise<void> {
+  public async performAutoSave(): Promise<void> {
     if (this.dirtyTables.size === 0) {
       // Aucune modification en attente
       return;
@@ -2762,8 +2763,10 @@ export class FlowiseTableBridge {
           savedTables.push(keyword);
           this.dirtyTables.delete(identifier);
           console.log(`✅ [AUTO-SAVE] Table "${keyword}" sauvegardée (ID: ${savedId})`);
+        } else {
+          console.warn(`⚠️ [AUTO-SAVE] Table "${keyword}" NOT saved (savedId empty)`);
+          failedTables.push(identifier);
         }
-        console.log(`âœ… [AUTO-SAVE] Table "${keyword}" sauvegardÃ©e`);
 
       } catch (error) {
         console.error(`âŒ [AUTO-SAVE] Erreur sauvegarde table "${identifier}":`, error);
