@@ -196,13 +196,16 @@ export class FlowiseTableService {
       // Generate fingerprint
       const fingerprint = this.generateTableFingerprint(tableElement);
 
-      // Check for duplicates (skip if forceUpdate is true)
-      if (!forceUpdate) {
+      // Check for duplicates (skip if forceUpdate is true OR source is user_edit)
+      // 🆕 ALWAYS save user edits, even if fingerprint identical (minor changes matter)
+      if (!forceUpdate && source !== 'user_edit') {
         const exists = await this.tableExists(sessionId, fingerprint);
         if (exists) {
           console.log('ℹ️ Table with same fingerprint already exists, skipping save');
           return '';
         }
+      } else if (source === 'user_edit') {
+        console.log('🔄 [USER-EDIT] Forcing save (user modification, ignoring fingerprint check)');
       }
 
       // Check storage limits before saving (Task 8.1, 8.3)
