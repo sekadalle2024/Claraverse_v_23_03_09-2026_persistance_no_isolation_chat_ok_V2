@@ -222,9 +222,14 @@
       }, CONFIG.checkInterval);
 
       // Sauvegarder périodiquement
+      // 🚫 DÉSACTIVÉ : Conflit avec flowiseTableBridge auto-save
+      // Gardons uniquement le nouveau système de persistance
+      /*
       this.autoSaveIntervalId = setInterval(() => {
         this.autoSaveAllTables();
       }, 30000); // Sauvegarde automatique toutes les 30 secondes
+      */
+      console.log("⚠️ [CONSO] Auto-save désactivé (utilise flowiseTableBridge)");
 
       debug.log("Surveillance des tables démarrée");
     }
@@ -2208,6 +2213,7 @@
 
     /**
      * Sauvegarder immédiatement l'état d'une table
+     * 🔄 MODIFIÉ : Logique métier conservée, sauvegarde localStorage désactivée
      */
     saveTableDataNow(table) {
       if (!table) {
@@ -2220,7 +2226,10 @@
       const tableId = this.generateUniqueTableId(table);
       debug.log("🆔 ID de table pour sauvegarde:", tableId);
 
-      const allData = this.loadAllData();
+      // 🚫 DÉSACTIVÉ : Chargement données existantes (localStorage)
+      // const allData = this.loadAllData();
+      const allData = {}; // Objet vide, pas de chargement localStorage
+      
       debug.log(
         "📂 Données existantes chargées, nombre de tables:",
         Object.keys(allData).length,
@@ -2286,7 +2295,9 @@
         timestamp: new Date(tableData.timestamp).toLocaleString("fr-FR"),
       });
 
-      this.saveAllData(allData);
+      // 🚫 DÉSACTIVÉ : Sauvegarde localStorage (flowiseTableBridge gère maintenant)
+      // this.saveAllData(allData);
+      console.log("⚠️ [CONSO] saveTableDataNow: Logique métier OK, sauvegarde localStorage skippée (flowiseTableBridge)");
 
       debug.log(`✅ Table ${tableId} sauvegardée avec succès`);
       debug.log(
