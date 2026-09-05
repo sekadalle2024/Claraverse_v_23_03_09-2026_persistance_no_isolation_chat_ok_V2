@@ -54,6 +54,10 @@
             style="padding: 12px 20px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
       🔧 Force Save
     </button>
+    <button onclick="(async () => { try { const db = await new Promise((res, rej) => { const req = indexedDB.open('FloTableDB'); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); const tx = db.transaction(['clara_generated_tables'], 'readonly'); const store = tx.objectStore('clara_generated_tables'); const allTables = await new Promise((res, rej) => { const req = store.getAll(); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); let msg = '🔍 DEBUG LOOKUP\\n\\n'; msg += '📊 Total tables IndexedDB: ' + allTables.length + '\\n\\n'; const sessions = {}; allTables.forEach(t => { sessions[t.sessionId] = (sessions[t.sessionId] || 0) + 1; }); msg += '📋 Tables par session:\\n'; Object.entries(sessions).forEach(([sid, count]) => { msg += '  • ' + sid.substring(0,8) + '...: ' + count + ' table(s)\\n'; }); msg += '\\n🔑 Fingerprints uniques:\\n'; const fps = new Set(allTables.map(t => t.fingerprint)); msg += '  ' + fps.size + ' fingerprint(s) différent(s)\\n\\n'; msg += '📝 Dernières 5 tables:\\n'; allTables.slice(-5).forEach((t, i) => { msg += (i+1) + '. ' + t.keyword + '\\n   FP: ' + t.fingerprint.substring(0,8) + '...\\n   Session: ' + t.sessionId.substring(0,8) + '...\\n'; }); alert(msg); } catch (err) { alert('❌ ERREUR\\n\\n' + err.message); } })();"
+            style="padding: 12px 20px; background: #0891b2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      🔍 Debug Lookup
+    </button>
   </div>
   
   <div id="root"></div>

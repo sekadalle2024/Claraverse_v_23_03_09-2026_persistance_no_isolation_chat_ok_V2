@@ -249,6 +249,10 @@ export class FlowiseTableService {
       if (source === 'user_edit') {
         // Check if table with same fingerprint already exists
         const existingTables = await indexedDBService.getAllGeneratedTables<FlowiseGeneratedTableRecord>();
+        
+        console.log(`🔍 [DEBUG-LOOKUP] Searching in ${existingTables.length} tables`);
+        console.log(`🔍 [DEBUG-LOOKUP] Looking for sessionId="${sessionId?.substring(0,8)}..." fingerprint="${fingerprint.substring(0,8)}..."`);
+        
         const existing = existingTables.find(t => 
           t.sessionId === sessionId && 
           t.fingerprint === fingerprint
@@ -257,9 +261,18 @@ export class FlowiseTableService {
         if (existing) {
           tableId = existing.id; // Reuse existing ID → UPDATE
           console.log(`🔄 [USER-EDIT] Reusing existing table ID: ${tableId} (will UPDATE)`);
+          console.log(`🔍 [DEBUG-LOOKUP] Match found! keyword="${existing.keyword}"`);
         } else {
           tableId = this.generateStableUUID(sessionId, keyword); // New stable ID
           console.log(`🆕 [USER-EDIT] Creating new stable ID: ${tableId}`);
+          console.log(`🔍 [DEBUG-LOOKUP] No match found. Reason:`);
+          
+          // Debug: Show first 3 tables to compare
+          existingTables.slice(0, 3).forEach((t, i) => {
+            const sessionMatch = t.sessionId === sessionId;
+            const fpMatch = t.fingerprint === fingerprint;
+            console.log(`  Table ${i}: sessionId=${sessionMatch ? '✅' : '❌'} fp=${fpMatch ? '✅' : '❌'} keyword="${t.keyword}"`);
+          });
         }
       } else {
         tableId = this.generateUUID(); // Random UUID for new tables
