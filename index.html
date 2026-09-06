@@ -7,6 +7,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>E-audit</title>
 
+  <!-- 🚫 HOOK ANTI-FLOTABLEDB -->
+  <script>
+  // Bloquer création FloTableDB automatique par scripts diagnostics
+  (function() {
+    const originalOpen = IDBFactory.prototype.open;
+    IDBFactory.prototype.open = function(name, version) {
+      if (name === 'FloTableDB') {
+        console.warn('🚫 FloTableDB bloqué (deprecated), scripts doivent utiliser clara_db');
+        // Retourner erreur pour forcer scripts à gérer l'échec
+        const fakeRequest = {};
+        setTimeout(() => {
+          if (fakeRequest.onerror) {
+            fakeRequest.onerror({ target: { error: new Error('FloTableDB deprecated, use clara_db') } });
+          }
+        }, 0);
+        return fakeRequest;
+      }
+      return originalOpen.call(this, name, version);
+    };
+    console.log('✅ Hook anti-FloTableDB installé');
+  })();
+  </script>
+
   <!-- ⚡ BACKEND CONFIGURATION - DOIT ÊTRE CHARGÉ EN PREMIER ⚡ -->
   <script src="/backendConfig.js"></script>
 
@@ -38,9 +61,13 @@
             style="padding: 12px 20px; background: #f59e0b; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
       🔄 Intégrer Tables
     </button>
-    <button onclick="if (confirm('🧹 NETTOYAGE INDEXEDDB\\n\\nCette action va:\\n✅ Supprimer toutes les tables sauvegardées\\n✅ Résoudre incompatibilité keywords\\n✅ Recharger la page automatiquement\\n\\n⚠️ Les tables seront régénérées au prochain F5\\n\\nContinuer ?')) { const req = indexedDB.deleteDatabase('FloTableDB'); req.onsuccess = () => { alert('✅ IndexedDB nettoyée !\\n\\nRechargement dans 2 secondes...'); setTimeout(() => location.reload(), 2000); }; req.onerror = (e) => alert('❌ Erreur: ' + e.target.error); req.onblocked = () => alert('⚠️ Bloqué\\n\\nFermez tous les autres onglets de cette app et réessayez'); }"
+    <button onclick="(async () => { try { console.log('🧹 Nettoyage manuel...'); await new Promise(res => { const req1 = indexedDB.deleteDatabase('FloTableDB'); req1.onsuccess = () => { console.log('✅ FloTableDB supprimé'); res(); }; req1.onerror = () => { console.log('❌ Erreur FloTableDB'); res(); }; }); await new Promise(res => { const req2 = indexedDB.deleteDatabase('clara_db'); req2.onsuccess = () => { console.log('✅ clara_db supprimé'); res(); }; req2.onerror = () => { console.log('❌ Erreur clara_db'); res(); }; }); await new Promise(res => setTimeout(res, 500)); const dbs = await indexedDB.databases(); const remaining = dbs.filter(db => db.name === 'FloTableDB' || db.name === 'clara_db'); if (remaining.length > 0) { alert('⚠️ ÉCHEC PARTIEL\\n\\nBases restantes: ' + remaining.map(d => d.name).join(', ') + '\\n\\nFERMEZ tous les onglets de cette app\\npuis RÉESSAYEZ'); } else { alert('✅ NETTOYAGE RÉUSSI !\\n\\nFloTableDB: Supprimé ✅\\nclara_db: Supprimé ✅\\n\\nRechargement...'); setTimeout(() => location.reload(), 1500); } } catch (err) { alert('❌ ERREUR\\n\\n' + err.message); } })();"
             style="padding: 12px 20px; background: #dc2626; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
       🧹 Nettoyer IndexedDB
+    </button>
+    <button onclick="(async () => { try { const dbs = await indexedDB.databases(); let msg = '📊 BASES INDEXEDDB\\n\\n'; if (dbs.length === 0) { msg += '✅ Aucune base trouvée\\n(Système propre)'; } else { msg += 'Bases existantes:\\n'; dbs.forEach((db, i) => { msg += (i+1) + '. ' + db.name + ' (v' + db.version + ')\\n'; }); msg += '\\n🎯 Base attendue:\\nclara_db (avec clara_generated_tables)\\n\\n'; const hasClara = dbs.some(db => db.name === 'clara_db'); const hasFlo = dbs.some(db => db.name === 'FloTableDB'); if (hasClara && !hasFlo) { msg += '✅ Configuration CORRECTE'; } else if (hasFlo) { msg += '⚠️ FloTableDB existe (ancien système)\\nCliquez Nettoyer pour supprimer'; } else { msg += '⚠️ clara_db manquante\\nGénérez une table pour la créer'; } } alert(msg); } catch (err) { alert('❌ ERREUR\\n\\n' + err.message); } })();"
+            style="padding: 12px 20px; background: #0891b2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+      📊 Vérifier Bases
     </button>
     <button onclick="if (window.flowiseTableBridge && window.flowiseTableBridge.performAutoSave) { window.flowiseTableBridge.performAutoSave().then(() => alert('✅ SAUVEGARDE MANUELLE\\n\\nToutes les tables modifiées ont été sauvegardées !\\n\\nConsultez la console F12 pour les détails.')).catch(err => alert('❌ Erreur sauvegarde:\\n\\n' + err.message)); } else { alert('❌ ERREUR\\n\\nSystème auto-save non disponible.\\n\\nVérifiez la console F12.'); }"
             style="padding: 12px 20px; background: #16a34a; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
@@ -54,7 +81,7 @@
             style="padding: 12px 20px; background: #7c3aed; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
       🔧 Force Save
     </button>
-    <button onclick="(async () => { try { const db = await new Promise((res, rej) => { const req = indexedDB.open('FloTableDB'); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); const tx = db.transaction(['clara_generated_tables'], 'readonly'); const store = tx.objectStore('clara_generated_tables'); const allTables = await new Promise((res, rej) => { const req = store.getAll(); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); let msg = '🔍 DEBUG LOOKUP\\n\\n'; msg += '📊 Total tables IndexedDB: ' + allTables.length + '\\n\\n'; const sessions = {}; allTables.forEach(t => { sessions[t.sessionId] = (sessions[t.sessionId] || 0) + 1; }); msg += '📋 Tables par session:\\n'; Object.entries(sessions).forEach(([sid, count]) => { msg += '  • ' + sid.substring(0,8) + '...: ' + count + ' table(s)\\n'; }); msg += '\\n🔑 Fingerprints uniques:\\n'; const fps = new Set(allTables.map(t => t.fingerprint)); msg += '  ' + fps.size + ' fingerprint(s) différent(s)\\n\\n'; msg += '📝 Dernières 5 tables:\\n'; allTables.slice(-5).forEach((t, i) => { msg += (i+1) + '. ' + t.keyword + '\\n   FP: ' + t.fingerprint.substring(0,8) + '...\\n   Session: ' + t.sessionId.substring(0,8) + '...\\n'; }); alert(msg); } catch (err) { alert('❌ ERREUR\\n\\n' + err.message); } })();"
+    <button onclick="(async () => { try { const db = await new Promise((res, rej) => { const req = indexedDB.open('clara_db'); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); if (!db.objectStoreNames.contains('clara_generated_tables')) { alert('⚠️ BASE VIDE\\n\\nclara_db existe mais clara_generated_tables pas encore créé.\\n\\nGénérez une table avec GPT pour initialiser le store.'); db.close(); return; } const tx = db.transaction(['clara_generated_tables'], 'readonly'); const store = tx.objectStore('clara_generated_tables'); const allTables = await new Promise((res, rej) => { const req = store.getAll(); req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); db.close(); let msg = '🔍 DEBUG LOOKUP\\n\\n'; msg += '📊 Total tables: ' + allTables.length + '\\n\\n'; if (allTables.length === 0) { msg += '⚠️ Aucune table sauvegardée\\n\\nGénérez une table avec GPT'; alert(msg); return; } const sessions = {}; allTables.forEach(t => { const sid = t.sessionId || 'unknown'; sessions[sid] = (sessions[sid] || 0) + 1; }); msg += '📋 Tables par session:\\n'; Object.entries(sessions).forEach(([sid, count]) => { const shortId = sid === 'unknown' ? 'unknown' : sid.substring(0,8) + '...'; msg += '  • ' + shortId + ': ' + count + '\\n'; }); const fps = new Set(allTables.map(t => t.fingerprint).filter(f => f)); msg += '\\n🔑 Fingerprints uniques: ' + fps.size + '\\n'; if (allTables.length > fps.size) { msg += '⚠️ DOUBLONS DÉTECTÉS: ' + (allTables.length - fps.size) + ' table(s)\\n'; } msg += '\\n📝 Dernières 5 tables:\\n'; allTables.slice(-5).forEach((t, i) => { const kw = t.keyword || 'no-keyword'; const fp = t.fingerprint ? t.fingerprint.substring(0,8) + '...' : 'no-fp'; const sid = t.sessionId ? t.sessionId.substring(0,8) + '...' : 'no-session'; msg += (i+1) + '. ' + kw + '\\n   FP: ' + fp + '\\n   Sess: ' + sid + '\\n'; }); alert(msg); } catch (err) { alert('❌ ERREUR\\n\\n' + err.message + '\\n\\nVérifiez:\\n- clara_db existe ?\\n- clara_generated_tables créé ?'); } })();"
             style="padding: 12px 20px; background: #0891b2; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
       🔍 Debug Lookup
     </button>
@@ -68,8 +95,8 @@
   <!-- SYSTÈME DE RESTAURATION UNIQUE -->
   <!-- ========================================== -->
   
-  <!-- 🔧 INITIALISATION INDEXEDDB - DOIT ÊTRE EN PREMIER -->
-  <script src="/init-indexeddb.js"></script>
+  <!-- 🔧 INITIALISATION INDEXEDDB - DÉSACTIVÉ (utilise clara_db maintenant) -->
+  <!-- <script src="/init-indexeddb.js"></script> -->
 
   <!-- 1. Gestionnaire de verrouillage - DOIT être chargé EN PREMIER -->
   <script src="/restore-lock-manager.js"></script>
@@ -183,14 +210,14 @@
   <!-- 🧪 TEST SIMPLE PATCHER (temporaire) -->
   <script src="/test-keyword-patcher-simple.js"></script>
   
-  <!-- 🧪 TESTS PAR PHASE -->
-  <script src="/test-phase-1-diagnostic.js"></script>
-  <script src="/test-phase-2-modifications.js"></script>
-  <script src="/test-phase-3-persistance.js"></script>
-  <script src="/diagnostic-complet-fusionne.js"></script>
+  <!-- 🧪 TESTS PAR PHASE - DÉSACTIVÉS (ouvrent FloTableDB deprecated) -->
+  <!-- <script src="/test-phase-1-diagnostic.js"></script> -->
+  <!-- <script src="/test-phase-2-modifications.js"></script> -->
+  <!-- <script src="/test-phase-3-persistance.js"></script> -->
+  <!-- <script src="/diagnostic-complet-fusionne.js"></script> -->
   
-  <!-- 🔍 DIAGNOSTIC UNIFIÉ (OPTION B: Fusion complète) -->
-  <script src="/diagnostic-unifie.js"></script>
+  <!-- 🔍 DIAGNOSTIC UNIFIÉ - DÉSACTIVÉ (ouvre FloTableDB deprecated) -->
+  <!-- <script src="/diagnostic-unifie.js"></script> -->
   
   <!-- 🔄 INTÉGRATION TABLES RESTAURÉES (Résolution Problème 2) -->
   <script src="/integrate-restored-tables.js"></script>
