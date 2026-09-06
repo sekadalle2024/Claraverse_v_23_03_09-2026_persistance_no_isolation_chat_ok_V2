@@ -247,21 +247,23 @@ export class FlowiseTableService {
       // 🆕 For user_edit: Find existing table by fingerprint and reuse its ID (allows UPDATE)
       let tableId: string;
       if (source === 'user_edit') {
-        // Check if table with same fingerprint already exists
+        // Check if table with same sessionId + keyword already exists
+        // 🆕 FIX: Cherche par KEYWORD pas fingerprint (fingerprint change à chaque modif)
         const existingTables = await indexedDBService.getAllGeneratedTables<FlowiseGeneratedTableRecord>();
         
         console.log(`🔍 [DEBUG-LOOKUP] Searching in ${existingTables.length} tables`);
-        console.log(`🔍 [DEBUG-LOOKUP] Looking for sessionId="${sessionId?.substring(0,8)}..." fingerprint="${fingerprint.substring(0,8)}..."`);
+        console.log(`🔍 [DEBUG-LOOKUP] Looking for sessionId="${sessionId?.substring(0,8)}..." keyword="${keyword}"`);
         
+        // Matcher par sessionId + keyword (stable) au lieu de sessionId + fingerprint (change)
         const existing = existingTables.find(t => 
           t.sessionId === sessionId && 
-          t.fingerprint === fingerprint
+          t.keyword === keyword
         );
         
         if (existing) {
           tableId = existing.id; // Reuse existing ID → UPDATE
           console.log(`🔄 [USER-EDIT] Reusing existing table ID: ${tableId} (will UPDATE)`);
-          console.log(`🔍 [DEBUG-LOOKUP] Match found! keyword="${existing.keyword}"`);
+          console.log(`🔍 [DEBUG-LOOKUP] Match found! keyword="${existing.keyword}" oldFP="${existing.fingerprint?.substring(0,8)}..." newFP="${fingerprint.substring(0,8)}..."`);
         } else {
           tableId = this.generateStableUUID(sessionId, keyword); // New stable ID
           console.log(`🆕 [USER-EDIT] Creating new stable ID: ${tableId}`);
@@ -270,8 +272,8 @@ export class FlowiseTableService {
           // Debug: Show first 3 tables to compare
           existingTables.slice(0, 3).forEach((t, i) => {
             const sessionMatch = t.sessionId === sessionId;
-            const fpMatch = t.fingerprint === fingerprint;
-            console.log(`  Table ${i}: sessionId=${sessionMatch ? '✅' : '❌'} fp=${fpMatch ? '✅' : '❌'} keyword="${t.keyword}"`);
+            const kwMatch = t.keyword === keyword;
+            console.log(`  Table ${i}: sessionId=${sessionMatch ? '✅' : '❌'} keyword=${kwMatch ? '✅' : '❌'} kw="${t.keyword}"`);
           });
         }
       } else {
